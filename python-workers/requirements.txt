@@ -1,0 +1,15 @@
+pika
+psycopg2-binary
+transformers
+torch
+scikit-learn
+sentence-transformers
+PyMuPDF
+python-docx
+pandas
+openpyxl
+fastapi
+uvicorn[standard]
+dateparser
+requests
+beautifulsoup4

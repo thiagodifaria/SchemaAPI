@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: schema_api_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: schema_api_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: schema_api_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: unless-stopped
+
+  rust-core:
+    build:
+      context: ./rust-core
+    container_name: schema_api_rust_core
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./rust-core:/usr/src/app
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: on-failure
+
+  python-ingestion-worker:
+    build:
+      context: ./python-workers
+    container_name: schema_api_ingestion_worker
+    environment:
+      - POSTGRES_DB=schema_api_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - DB_HOST=postgres
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: on-failure
+    command: python src/worker.py
+
+  python-analytics-worker:
+    build:
+      context: ./python-workers
+    container_name: schema_api_analytics_worker
+    environment:
+      - POSTGRES_DB=schema_api_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - DB_HOST=postgres
+      - RABBITMQ_HOST=rabbitmq
+    depends_on:
+      - postgres
+      - rabbitmq
+    restart: on-failure
+    command: python src/analytics_worker.py
+
+  python-api-service:
+    build:
+      context: ./python-workers
+    container_name: schema_api_api_service
+    ports:
+      - "8001:8001"
+    restart: on-failure
+    command: uvicorn src.api_service:app --host 0.0.0.0 --port 8001
+
+volumes:
+  postgres_data:
