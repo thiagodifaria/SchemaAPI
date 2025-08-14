@@ -20,9 +20,6 @@ pub struct Chunk {
     pub position: i32,
     pub token_count: i32,
     pub created_at: DateTime<Utc>,
-    // O tipo pgvector::Vector não implementa Clone/Hash/etc. por padrão
-    // por isso não podemos derivá-los aqui se o campo estiver ativo.
-    // pub embedding: Option<pgvector::Vector>,
 }
 
 #[derive(Serialize, Deserialize, FromRow, Clone, PartialEq, Eq, Hash, Debug)]
@@ -34,7 +31,7 @@ pub struct ActionItem {
     pub assignee_name: Option<String>,
     pub due_date: Option<NaiveDate>,
     pub priority: Option<String>,
-    pub confidence: Option<f32>,
+    pub confidence: Option<i32>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -45,7 +42,7 @@ pub struct ProcessingVersionWithDocument {
     pub status: String,
     pub summary_text: Option<String>,
     pub summary_type: Option<String>,
-    pub summary_confidence: Option<f32>,
+    pub summary_confidence: Option<i32>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

@@ -11,6 +11,6 @@ RUN python -c "from transformers import pipeline; pipeline('ner', model='dslim/b
 RUN python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
 RUN python -c "from transformers import pipeline; pipeline('ner', model='Jean-Baptiste/roberta-large-ner-english')"
 
-COPY ./src .
+COPY ./src ./src
 
 CMD ["python", "src/worker.py"]

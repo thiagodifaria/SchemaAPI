@@ -4,6 +4,8 @@ use lapin::{
     Connection, ConnectionProperties, Result,
 };
 use serde::Serialize;
+use serde_json;
+use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -14,13 +16,13 @@ struct JobMessage {
 
 #[derive(Clone)]
 pub struct RabbitMQPublisher {
-    conn: Connection,
+    conn: Arc<Connection>,
 }
 
 impl RabbitMQPublisher {
     pub async fn new(uri: &str) -> Result<Self> {
         let conn = Connection::connect(uri, ConnectionProperties::default()).await?;
-        Ok(Self { conn })
+        Ok(Self { conn: Arc::new(conn) })
     }
 
     pub async fn publish_ingestion_job(&self, document_id: Uuid, processing_version_id: Uuid) -> Result<()> {

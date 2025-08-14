@@ -1,80 +1,145 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: schema_api_postgres
+    hostname: postgres
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password123
       POSTGRES_DB: schema_api_db
+      LANG: en_US.utf8
+      LC_ALL: en_US.utf8
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - schema_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d schema_api_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     container_name: schema_api_rabbitmq
+    hostname: rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - schema_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   rust-core:
     build:
-      context: ./rust-core
+      context: .
+      dockerfile: ./rust-core/Dockerfile
     container_name: schema_api_rust_core
+    hostname: rust-core
     ports:
-      - "8080:8080"
+      - "8081:8081"
     volumes:
-      - ./rust-core:/usr/src/app
+      - ./config:/usr/src/app/config
+    networks:
+      - schema_network
     depends_on:
-      - postgres
-      - rabbitmq
-    restart: on-failure
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    dns_search:
+      - schema_network
 
   python-ingestion-worker:
     build:
       context: ./python-workers
     container_name: schema_api_ingestion_worker
+    hostname: ingestion-worker
     environment:
       - POSTGRES_DB=schema_api_db
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=password123
       - DB_HOST=postgres
       - RABBITMQ_HOST=rabbitmq
+      - DB_HOST_FALLBACK=schema_api_postgres
+      - RABBITMQ_HOST_FALLBACK=schema_api_rabbitmq
+    networks:
+      - schema_network
     depends_on:
-      - postgres
-      - rabbitmq
-    restart: on-failure
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
     command: python src/worker.py
 
   python-analytics-worker:
     build:
       context: ./python-workers
     container_name: schema_api_analytics_worker
+    hostname: analytics-worker
     environment:
       - POSTGRES_DB=schema_api_db
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=password123
       - DB_HOST=postgres
       - RABBITMQ_HOST=rabbitmq
+      - DB_HOST_FALLBACK=schema_api_postgres
+      - RABBITMQ_HOST_FALLBACK=schema_api_rabbitmq
+    networks:
+      - schema_network
     depends_on:
-      - postgres
-      - rabbitmq
-    restart: on-failure
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
     command: python src/analytics_worker.py
 
   python-api-service:
     build:
       context: ./python-workers
     container_name: schema_api_api_service
+    hostname: api-service
     ports:
       - "8001:8001"
-    restart: on-failure
+    networks:
+      - schema_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8001/vectorize || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     command: uvicorn src.api_service:app --host 0.0.0.0 --port 8001
+
+networks:
+  schema_network:
+    driver: bridge
+    name: schema_api_network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
 volumes:
   postgres_data:

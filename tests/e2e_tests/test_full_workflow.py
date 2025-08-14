@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import requests
 import time
 import os
 from psycopg2 import sql
 
 # Configurações do teste
-API_URL = "http://localhost:8080"
+API_URL = "http://localhost:8081"
 POLL_TIMEOUT_SECONDS = 90
 POLL_INTERVAL_SECONDS = 2
 TEST_FILE_PATH = "tests/e2e_tests/sample_document.txt"
@@ -33,6 +34,7 @@ def test_full_e2e_workflow(db_connection):
     with open(TEST_FILE_PATH, "w", encoding="utf-8") as f:
         f.write(TEST_FILE_CONTENT)
 
+    # Upload do arquivo
     with open(TEST_FILE_PATH, "rb") as f:
         files = {'file': (os.path.basename(TEST_FILE_PATH), f, 'text/plain')}
         res = requests.post(f"{API_URL}/documents", files=files)
@@ -69,25 +71,29 @@ def test_full_e2e_workflow(db_connection):
     # Verificação direta no banco de dados
     cur = db_connection.cursor()
     
-    # Encontra o ID da versão mais recente
-    cur.execute(sql.SQL("SELECT id FROM processing_versions WHERE document_id = %s ORDER BY version_number DESC LIMIT 1"), (document_id,))
-    version_id = cur.fetchone()[0]
-    
-    # Verifica classificação
-    cur.execute(sql.SQL("SELECT label FROM document_classifications WHERE processing_version_id = %s"), (version_id,))
-    labels = [row[0] for row in cur.fetchall()]
-    assert "finanças" in labels
-    
-    # Verifica KPI Financeiro
-    cur.execute(sql.SQL("SELECT kpi_name, kpi_value FROM financial_kpis WHERE processing_version_id = %s"), (version_id,))
-    kpi = cur.fetchone()
-    assert kpi is not None
-    assert kpi[0] == "Receita"
-    assert int(kpi[1]) == 500000
+    try:
+        # Encontra o ID da versão mais recente
+        cur.execute(sql.SQL("SELECT id FROM processing_versions WHERE document_id = %s ORDER BY version_number DESC LIMIT 1"), (document_id,))
+        version_result = cur.fetchone()
+        assert version_result is not None, f"Nenhuma versão encontrada para document_id: {document_id}"
+        version_id = version_result[0]
+        
+        # Verifica classificação
+        cur.execute(sql.SQL("SELECT label FROM document_classifications WHERE processing_version_id = %s"), (version_id,))
+        labels = [row[0] for row in cur.fetchall()]
+        assert "finanças" in labels
+        
+        # Verifica KPI Financeiro
+        cur.execute(sql.SQL("SELECT kpi_name, kpi_value FROM financial_kpis WHERE processing_version_id = %s"), (version_id,))
+        kpi = cur.fetchone()
+        assert kpi is not None
+        assert kpi[0] == "Receita"
+        assert int(kpi[1]) == 500000
+        
+    finally:
+        cur.close()
 
-    cur.close()
-
-    # Verificação da bsuca
+    # Verificação da busca
     search_payload = {"query": "orçamento com a diretoria"}
     res_search = requests.post(f"{API_URL}/search", json=search_payload)
     assert res_search.status_code == 200
@@ -95,4 +101,6 @@ def test_full_e2e_workflow(db_connection):
     assert len(search_results) > 0
     assert search_results[0]['document_id'] == document_id
 
-    os.remove(TEST_FILE_PATH)
+    # Cleanup
+    if os.path.exists(TEST_FILE_PATH):
+        os.remove(TEST_FILE_PATH)

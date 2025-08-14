@@ -1,7 +1,8 @@
 use actix_web::{web, HttpResponse, Responder, post, get};
 use actix_multipart::Multipart;
-use futures_util::TryStreamExt;
+use futures_util::StreamExt;
 use serde::Deserialize;
+use serde_json;
 use uuid::Uuid;
 use chrono::Utc;
 use std::hash::{Hash, Hasher};
@@ -36,24 +37,42 @@ pub async fn ingest_document(
     publisher: web::Data<RabbitMQPublisher>,
 ) -> impl Responder {
     let mut file_content: Option<Vec<u8>> = None;
-    let mut file_name = String::new();
-    let mut mime_type = String::new();
+    let mut file_name = String::from("unknown_file");
+    let mut mime_type = String::from("application/octet-stream");
     let mut metadata: IngestionMetadata = IngestionMetadata::default();
 
-    while let Some(mut field) = payload.try_next().await.unwrap_or(None) {
-        let field_name = field.name().unwrap_or("").to_string();
-        let disposition = field.content_disposition().clone();
+    while let Some(field_result) = payload.next().await {
+        let mut field = match field_result {
+            Ok(f) => f,
+            Err(e) => {
+                eprintln!("Multipart field error: {}", e);
+                continue;
+            }
+        };
+
+        let field_name = field.name().to_string();
         
         let mut field_bytes = Vec::new();
-        while let Some(chunk) = field.try_next().await.unwrap_or(None) {
-            field_bytes.extend_from_slice(&chunk);
+        while let Some(chunk_result) = field.next().await {
+             match chunk_result {
+                Ok(chunk) => field_bytes.extend_from_slice(&chunk),
+                Err(e) => {
+                    eprintln!("Error reading chunk: {}", e);
+                    return HttpResponse::InternalServerError().finish();
+                }
+            }
         }
 
         if field_name == "metadata" {
             metadata = serde_json::from_slice(&field_bytes).unwrap_or_default();
         } else {
-            file_name = disposition.get_filename().unwrap_or("unknown_file").to_string();
-            mime_type = field.content_type().map(|m| m.to_string()).unwrap_or("application/octet-stream".to_string());
+            let disposition = field.content_disposition();
+            if let Some(name) = disposition.get_filename() {
+                file_name = name.to_string();
+            }
+            if let Some(mt) = field.content_type() {
+                mime_type = mt.to_string();
+            }
             file_content = Some(field_bytes);
         }
     }

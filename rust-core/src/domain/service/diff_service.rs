@@ -1,6 +1,5 @@
 use serde::Serialize;
 use std::collections::HashSet;
-use std::hash::Hash;
 use crate::domain::model::document::ActionItem; // Assumindo que ActionItem derive PartialEq, Eq, Hash e Clone
 
 #[derive(Serialize, Debug, PartialEq)]
