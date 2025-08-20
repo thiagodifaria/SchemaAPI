@@ -28,10 +28,14 @@ struct Settings { api: ApiSettings, database: DatabaseSettings, rabbitmq: Rabbit
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let settings = config::Config::builder()
-        .add_source(config::File::with_name("config/development.yml"))
+    let config_builder = config::Config::builder()
+        .add_source(config::Environment::default().separator("__"))
         .build()
-        .expect("Failed to build configuration")
+        .expect("Failed to build configuration");
+
+    println!("Configuração interna detectada: {:?}", config_builder);
+
+    let settings = config_builder
         .try_deserialize::<Settings>()
         .expect("Failed to deserialize configuration");
 

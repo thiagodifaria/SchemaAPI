@@ -1,8 +1,8 @@
 ﻿database:
-  url: "postgres://admin:password123@schema_api_postgres:5432/schema_api_db"
+  url: "postgres://admin:password123@postgres:5432/schema_api_db"
 
 rabbitmq:
-  url: "amqp://guest:guest@schema_api_rabbitmq:5672/%2f"
+  url: "amqp://guest:guest@rabbitmq:5672/%2f"
 
 api:
   host: "0.0.0.0"

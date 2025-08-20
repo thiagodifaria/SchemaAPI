@@ -23,7 +23,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /usr/src/app
 
 COPY --from=builder /usr/src/app/rust-core/target/release/rust-core .
-COPY config ./config
+#COPY config ./config
 
 EXPOSE 8081
 

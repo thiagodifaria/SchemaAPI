@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: schema_api_postgres
     hostname: postgres
     environment:
@@ -21,6 +21,31 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  migrations:
+    image: postgres:16-alpine
+    container_name: schema_api_migrations
+    hostname: migrations
+    environment:
+      - PGPASSWORD=password123
+    volumes:
+      - ./database/migrations:/migrations
+    networks:
+      - schema_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        until pg_isready -h postgres -U admin -d schema_api_db; do
+          echo 'Aguardando o banco de dados...'
+          sleep 2
+        done
+        echo 'Banco de dados pronto. Aplicando migrações...'
+        for f in /migrations/*.sql; do psql -h postgres -U admin -d schema_api_db -f \"$$f\"; done
+        echo 'Migrações concluídas.'
+      "
+    restart: on-failure
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
@@ -46,11 +71,16 @@ services:
     hostname: rust-core
     ports:
       - "8081:8081"
-    volumes:
-      - ./config:/usr/src/app/config
+    environment:
+      - DATABASE__URL=postgres://admin:password123@postgres:5432/schema_api_db
+      - RABBITMQ__URL=amqp://guest:guest@rabbitmq:5672/%2f
+      - API__HOST=0.0.0.0
+      - API__PORT=8081    
     networks:
       - schema_network
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -79,11 +109,11 @@ services:
       - POSTGRES_PASSWORD=password123
       - DB_HOST=postgres
       - RABBITMQ_HOST=rabbitmq
-      - DB_HOST_FALLBACK=schema_api_postgres
-      - RABBITMQ_HOST_FALLBACK=schema_api_rabbitmq
     networks:
       - schema_network
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -102,11 +132,11 @@ services:
       - POSTGRES_PASSWORD=password123
       - DB_HOST=postgres
       - RABBITMQ_HOST=rabbitmq
-      - DB_HOST_FALLBACK=schema_api_postgres
-      - RABBITMQ_HOST_FALLBACK=schema_api_rabbitmq
     networks:
       - schema_network
     depends_on:
+      migrations:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       rabbitmq:

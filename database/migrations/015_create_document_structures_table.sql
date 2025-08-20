@@ -3,7 +3,7 @@ CREATE TABLE document_structures (
     processing_version_id UUID NOT NULL UNIQUE REFERENCES processing_versions(id) ON DELETE CASCADE,
     features JSONB NOT NULL,
     structure_hash TEXT NOT NULL,
-    created_at TIMESTAMTz NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_document_structures_structure_hash ON document_structures(structure_hash);
