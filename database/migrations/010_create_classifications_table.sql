@@ -1,6 +1,3 @@
--- Migration: 010_create_classifications_table
--- Date: 2025-08-12
-
 CREATE TABLE document_classifications (
     id UUID PRIMARY KEY,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

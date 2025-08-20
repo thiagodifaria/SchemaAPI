@@ -1,6 +1,3 @@
--- Migration: 012_implement_versioning_schema
--- Date: 2025-08-12
-
 CREATE TABLE processing_versions (
     id UUID PRIMARY KEY,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

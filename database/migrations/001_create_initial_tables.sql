@@ -1,6 +1,3 @@
--- Migration: 001_create_initial_tables
--- Date: 2025-08-12
-
 CREATE TABLE documents (
     id UUID PRIMARY KEY,
     source_hash VARCHAR(64) NOT NULL UNIQUE,

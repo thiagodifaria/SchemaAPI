@@ -1,7 +1,3 @@
--- Migration: 017_create_feedback_analysis_tables
--- Date: 2025-08-12
-
--- Step 1: Create a table to store aggregated error patterns
 CREATE TABLE error_patterns (
     id UUID PRIMARY KEY,
     prediction_type TEXT NOT NULL,

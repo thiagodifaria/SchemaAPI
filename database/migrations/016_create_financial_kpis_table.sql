@@ -1,6 +1,3 @@
--- Migration: 016_create_financial_kpis_table
--- Date: 2025-08-12
-
 CREATE TABLE financial_kpis (
     id UUID PRIMARY KEY,
     processing_version_id UUID NOT NULL REFERENCES processing_versions(id) ON DELETE CASCADE,

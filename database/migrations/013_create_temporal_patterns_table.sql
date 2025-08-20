@@ -1,6 +1,3 @@
--- Migration: 013_create_temporal_patterns_table
--- Date: 2025-08-12
-
 CREATE TABLE temporal_patterns (
     id UUID PRIMARY KEY,
     pattern_type VARCHAR(100) NOT NULL,

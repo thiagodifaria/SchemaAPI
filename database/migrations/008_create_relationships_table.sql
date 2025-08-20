@@ -1,6 +1,3 @@
--- Migration: 008_create_relationships_table
--- Date: 2025-08-12
-
 CREATE TABLE relationships (
     id UUID PRIMARY KEY,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

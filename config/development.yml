@@ -1,4 +1,4 @@
-database:
+﻿database:
   url: "postgres://admin:password123@schema_api_postgres:5432/schema_api_db"
 
 rabbitmq:

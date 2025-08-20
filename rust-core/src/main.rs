@@ -1,4 +1,4 @@
-use actix_web::{web, App, HttpServer};
+﻿use actix_web::{web, App, HttpServer};
 use sqlx::PgPool;
 use serde::Deserialize;
 
@@ -29,7 +29,7 @@ struct Settings { api: ApiSettings, database: DatabaseSettings, rabbitmq: Rabbit
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let settings = config::Config::builder()
-        .add_source(config::File::with_name("config/development"))
+        .add_source(config::File::with_name("config/development.yml"))
         .build()
         .expect("Failed to build configuration")
         .try_deserialize::<Settings>()

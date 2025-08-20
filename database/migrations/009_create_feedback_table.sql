@@ -1,6 +1,3 @@
--- Migration: 009_create_feedback_table
--- Date: 2025-08-12
-
 CREATE TABLE feedback (
     id UUID PRIMARY KEY,
     prediction_id UUID NOT NULL,

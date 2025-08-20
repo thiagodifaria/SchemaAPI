@@ -1,6 +1,3 @@
--- Migration: 007_create_knowledge_graph_tables
--- Date: 2025-08-12
-
 CREATE TABLE entities (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,

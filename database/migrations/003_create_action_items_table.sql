@@ -1,6 +1,3 @@
--- Migration: 003_create_action_items_table
--- Date: 2025-08-12
-
 CREATE TABLE action_items (
     id UUID PRIMARY KEY,
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,

@@ -1,6 +1,3 @@
--- Migration: 002_add_summary_and_trigger
--- Date: 2025-08-12
-
 ALTER TABLE documents
 ADD COLUMN summary_text TEXT,
 ADD COLUMN summary_type VARCHAR(50),

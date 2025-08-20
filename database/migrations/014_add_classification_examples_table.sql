@@ -1,6 +1,3 @@
--- Migration: 014_add_classification_examples_table
--- Date: 2025-08-12
-
 CREATE TABLE classification_examples (
     id UUID PRIMARY KEY,
     processing_version_id UUID NOT NULL REFERENCES processing_versions(id) ON DELETE CASCADE,
