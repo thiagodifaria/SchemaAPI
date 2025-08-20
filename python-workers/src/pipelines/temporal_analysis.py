@@ -5,7 +5,7 @@ import numpy as np
 class TemporalAnalysisPipeline:
     def detect_recurring_topics(self, conn) -> list:
         patterns = []
-        # Esta consulta usa a função LAG para encontrar o tempo entre ocorrências do mesmo tópico
+        # This query uses the LAG function to find the time between occurrences of the same topic
         query = """
         WITH TopicIntervals AS (
             SELECT
@@ -39,7 +39,7 @@ class TemporalAnalysisPipeline:
         for row in cur.fetchall():
             topic, median, stddev = row
             period = "unknown"
-            # 604800 segundos = 7 dias. Tolerância de 10%.
+            # 604800 seconds = 7 days, 10% tolerance
             if 544320 < median < 665280:
                 period = "weekly"
             

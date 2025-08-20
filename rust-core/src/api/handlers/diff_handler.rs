@@ -32,7 +32,7 @@ pub async fn get_document_diff(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     
-    // Por enquanto, o diff só compara ActionItems
+    // For now, the diff only compares ActionItems
     let action_items_diff = diff_service::compare_action_items(from_results.action_items, to_results.action_items);
 
     let diff_result = diff_service::StructuralDiff {

@@ -17,8 +17,6 @@ class ClassificationPipeline:
 
         results = self.pipeline(text, candidate_labels, multi_label=True)
         
-        # O resultado vem com 'labels' e 'scores'
-        # Vamos reestruturar para uma lista de dicionários
         classifications = []
         for i, label in enumerate(results['labels']):
             classifications.append({

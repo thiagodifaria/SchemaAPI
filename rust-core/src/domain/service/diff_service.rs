@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::collections::HashSet;
-use crate::domain::model::document::ActionItem; // Assumindo que ActionItem derive PartialEq, Eq, Hash e Clone
+use crate::domain::model::document::ActionItem; // Assuming ActionItem derives from PartialEq, Eq, Hash and Clone
 
 #[derive(Serialize, Debug, PartialEq)]
 pub enum DiffStatus {
@@ -18,7 +18,7 @@ pub struct DiffEntry<T> {
 #[derive(Serialize, Debug, Default)]
 pub struct StructuralDiff {
     pub action_items_diff: Vec<DiffEntry<ActionItem>>,
-    // Futuramente, podemos adicionar diffs para outros itens como tópicos, entidades, etc.
+    // In the future, we may add diffs for other items like topics, entities, etc.
 }
 
 pub fn compare_action_items(from_items: Vec<ActionItem>, to_items: Vec<ActionItem>) -> Vec<DiffEntry<ActionItem>> {

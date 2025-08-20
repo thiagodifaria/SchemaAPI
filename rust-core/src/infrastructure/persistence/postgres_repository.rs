@@ -20,11 +20,11 @@ pub struct RawFile<'a> {
     pub content: &'a [u8],
 }
 
-// Struct para agrupar todos os resultados de uma única versão
+// Struct to group all results from a single version
 #[derive(Default)]
 pub struct VersionResults {
     pub action_items: Vec<ActionItem>,
-    // Futuramente, podemos adicionar outros resultados como tópicos, etc.
+    // In the future, we may add other results such as topics, etc.
 }
 
 
@@ -210,7 +210,7 @@ impl PostgresRepository {
             .fetch_all(&self.pool)
             .await?;
             
-            // Futuramente, buscar outros resultados (tópicos, etc.) aqui
+            // In the future, look for other results (topics, etc.) here
             
             Ok(Some(VersionResults { action_items }))
         } else {
