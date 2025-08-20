@@ -33,7 +33,7 @@ async fn main() -> std::io::Result<()> {
         .build()
         .expect("Failed to build configuration");
 
-    println!("Configuração interna detectada: {:?}", config_builder);
+    println!("Internal configuration detected: {:?}", config_builder);
 
     let settings = config_builder
         .try_deserialize::<Settings>()
