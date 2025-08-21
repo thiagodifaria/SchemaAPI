@@ -10,6 +10,7 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 RUN python -c "from transformers import pipeline; pipeline('ner', model='dslim/bert-base-NER')"
 RUN python -c "from transformers import pipeline; pipeline('zero-shot-classification', model='facebook/bart-large-mnli')"
 RUN python -c "from transformers import pipeline; pipeline('ner', model='Jean-Baptiste/roberta-large-ner-english')"
+RUN python -c "from transformers import pipeline; pipeline('ner', model='maastrichtlawtech/legal-ner-bert')"
 
 COPY ./src ./src
 

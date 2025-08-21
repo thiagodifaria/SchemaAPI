@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder, post, get};
 use actix_multipart::Multipart;
-use futures_util::StreamExt;
+use futures_util::TryStreamExt;
 use serde::Deserialize;
 use serde_json;
 use uuid::Uuid;
@@ -46,7 +46,7 @@ pub async fn ingest_document(
     let mut mime_type = String::from("application/octet-stream");
     let mut metadata: IngestionMetadata = IngestionMetadata::default();
 
-    while let Some(field_result) = payload.next().await {
+    while let Some(field_result) = payload.try_next().await {
         let mut field = match field_result {
             Ok(f) => f,
             Err(e) => {
@@ -55,10 +55,13 @@ pub async fn ingest_document(
             }
         };
 
-        let field_name = field.name().to_string();
+        let field_name = match field.name() {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
         
-        let mut field_bytes = Vec<new>();
-        while let Some(chunk_result) = field.next().await {
+        let mut field_bytes = Vec::new();
+        while let Some(chunk_result) = field.try_next().await {
              match chunk_result {
                 Ok(chunk) => field_bytes.extend_from_slice(&chunk),
                 Err(e) => {
@@ -71,9 +74,10 @@ pub async fn ingest_document(
         if field_name == "metadata" {
             metadata = serde_json::from_slice(&field_bytes).unwrap_or_default();
         } else {
-            let disposition = field.content_disposition();
-            if let Some(name) = disposition.get_filename() {
-                file_name = name.to_string();
+            if let Some(disposition) = field.content_disposition() {
+                if let Some(name) = disposition.get_filename() {
+                    file_name = name.to_string();
+                }
             }
             if let Some(mt) = field.content_type() {
                 mime_type = mt.to_string();

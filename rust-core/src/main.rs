@@ -7,7 +7,7 @@ mod domain;
 mod infrastructure;
 
 use api::handlers::{
-    document_handler::{health_check, ingest_document, get_document, search_by_text},
+    document_handler::{health_check, ingest_document, get_document, search_by_text, ingest_from_url},
     feedback_handler::submit_feedback,
     graph_handler::get_document_graph,
     diff_handler::get_document_diff,
@@ -56,6 +56,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(db_pool.clone()))
             .service(health_check)
             .service(ingest_document)
+            .service(ingest_from_url)
             .service(get_document)
             .service(search_by_text)
             .service(submit_feedback)
