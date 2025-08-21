@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc, NaiveDate};
 use sqlx::FromRow;
+use std::hash::{Hash, Hasher};
 
 #[derive(Serialize, Deserialize, FromRow, Debug)]
 pub struct Document {
@@ -11,7 +12,7 @@ pub struct Document {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Serialize, Deserialize, FromRow, Debug)]
+#[derive(Serialize, Deserialize, FromRow, Debug, Clone)]
 pub struct Chunk {
     pub id: Uuid,
     pub processing_version_id: Uuid,
@@ -20,7 +21,23 @@ pub struct Chunk {
     pub position: i32,
     pub token_count: i32,
     pub created_at: DateTime<Utc>,
+    pub embedding: Option<pgvector::Vector>,
 }
+
+impl PartialEq for Chunk {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id && self.text_content == other.text_content
+    }
+}
+impl Eq for Chunk {}
+
+impl Hash for Chunk {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.text_content.hash(state);
+    }
+}
+
 
 #[derive(Serialize, Deserialize, FromRow, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ActionItem {
@@ -33,6 +50,7 @@ pub struct ActionItem {
     pub priority: Option<String>,
     pub confidence: Option<i32>,
     pub created_at: DateTime<Utc>,
+    pub dependencies: Option<Vec<Uuid>>,
 }
 
 #[derive(Serialize, FromRow, Debug)]

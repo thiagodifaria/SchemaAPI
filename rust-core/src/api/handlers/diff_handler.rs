@@ -32,11 +32,12 @@ pub async fn get_document_diff(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     
-    // For now, the diff only compares ActionItems
     let action_items_diff = diff_service::compare_action_items(from_results.action_items, to_results.action_items);
+    let chunks_diff = diff_service::compare_chunks_semantic(from_results.chunks, to_results.chunks);
 
     let diff_result = diff_service::StructuralDiff {
         action_items_diff,
+        chunks_diff,
     };
 
     HttpResponse::Ok().json(diff_result)

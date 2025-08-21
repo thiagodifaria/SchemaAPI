@@ -21,6 +21,11 @@ pub struct SearchRequest {
 }
 
 #[derive(Deserialize)]
+pub struct IngestUrlRequest {
+    pub url: String,
+}
+
+#[derive(Deserialize)]
 struct VectorizeResponse {
     vector: Vec<f32>,
 }
@@ -30,7 +35,7 @@ struct IngestionMetadata {
     classification_examples: Option<Vec<ClassificationExample>>,
 }
 
-#[post("/documents")]
+#[post("/documents/upload")]
 pub async fn ingest_document(
     mut payload: Multipart,
     repo: web::Data<PostgresRepository>,
@@ -52,7 +57,7 @@ pub async fn ingest_document(
 
         let field_name = field.name().to_string();
         
-        let mut field_bytes = Vec::new();
+        let mut field_bytes = Vec<new>();
         while let Some(chunk_result) = field.next().await {
              match chunk_result {
                 Ok(chunk) => field_bytes.extend_from_slice(&chunk),
@@ -103,6 +108,40 @@ pub async fn ingest_document(
         }
         Err(e) => {
             eprintln!("Failed to create document: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+
+#[post("/documents/url")]
+pub async fn ingest_from_url(
+    req: web::Json<IngestUrlRequest>,
+    repo: web::Data<PostgresRepository>,
+    publisher: web::Data<RabbitMQPublisher>,
+) -> impl Responder {
+    let url = &req.url;
+    let url_bytes = url.as_bytes();
+
+    let mut hasher = DefaultHasher::new();
+    url.hash(&mut hasher);
+    let source_hash = format!("{:x}", hasher.finish());
+
+    let doc_id_for_insert = Uuid::new_v4();
+    let now = Utc::now();
+
+    let document = Document { id: doc_id_for_insert, source_hash, created_at: now, updated_at: now };
+    let raw_file = RawFile { file_name: url, mime_type: "text/x-url", content: url_bytes };
+
+    match repo.ingest_new_file(&document, &raw_file, &[]).await {
+        Ok((document_id, processing_version_id)) => {
+            if let Err(e) = publisher.publish_ingestion_job(document_id, processing_version_id).await {
+                eprintln!("Failed to publish ingestion job for URL: {}", e);
+                return HttpResponse::InternalServerError().finish();
+            }
+            HttpResponse::Accepted().json(serde_json::json!({ "document_id": document_id }))
+        }
+        Err(e) => {
+            eprintln!("Failed to create document from URL: {}", e);
             HttpResponse::InternalServerError().finish()
         }
     }

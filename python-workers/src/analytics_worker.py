@@ -9,6 +9,7 @@ from psycopg2.extras import Json
 from pipelines.temporal_analysis import temporal_analysis_pipeline
 from pipelines.template_detection import template_detection_pipeline
 from pipelines.feedback_analysis import feedback_analysis_pipeline
+from pipelines.retraining import retraining_pipeline
 
 def get_db_connection():
     return psycopg2.connect(
@@ -116,6 +117,28 @@ def run_feedback_analysis():
     finally:
         conn.close()
 
+def run_template_creation():
+    conn = get_db_connection()
+    try:
+        created_templates = template_creation_pipeline.create_templates_from_structures(conn)
+        if created_templates:
+            print(f"Successfully created {len(created_templates)} new document templates.")
+        else:
+            print("No new templates were created based on current document structures.")
+    except Exception as e:
+        print(f"Error during template creation: {e}")
+    finally:
+        conn.close()
+
+def run_retraining_job():
+    conn = get_db_connection()
+    try:
+        retraining_pipeline.trigger_retraining(conn)
+    except Exception as e:
+        print(f"Error during retraining job simulation: {e}")
+    finally:
+        conn.close()
+
 def main():
     rabbitmq_host = os.environ.get('RABBITMQ_HOST', 'rabbitmq')
     connection = pika.BlockingConnection(pika.ConnectionParameters(host=rabbitmq_host))
@@ -136,6 +159,10 @@ def main():
                 run_template_detection()
             elif job_type == "analyze_feedback":
                 run_feedback_analysis()
+            elif job_type == "create_templates":
+                run_template_creation()
+            elif job_type == "trigger_retraining":
+                run_retraining_job()
             else:
                 print(f"Unknown job type: {job_type}")
 

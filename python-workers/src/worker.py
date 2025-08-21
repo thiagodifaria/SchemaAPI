@@ -11,6 +11,8 @@ import io
 import re
 import itertools
 import json
+import requests
+from bs4 import BeautifulSoup
 
 from pipelines.summarization import summarization_pipeline
 from pipelines.action_item_extraction import action_item_extraction_pipeline
@@ -20,6 +22,7 @@ from pipelines.classification import classification_pipeline
 from pipelines.tabular_processing import tabular_processing_pipeline
 from pipelines.finance_ner import finance_ner_pipeline
 from pipelines.finance_kpi_extractor import finance_kpi_extractor_pipeline
+from pipelines.finance_risk_classifier import finance_risk_classifier_pipeline
 
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
@@ -30,6 +33,16 @@ def extract_text_from_pdf(content: bytes) -> str:
 def extract_text_from_docx(content_bytes: bytes) -> str:
     doc = docx.Document(io.BytesIO(content_bytes))
     return "\n".join([para.text for para in doc.paragraphs])
+
+def extract_text_from_url(url: str) -> str:
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return soup.get_text(separator='\n', strip=True)
+    except requests.RequestException as e:
+        print(f"Failed to download or parse URL {url}: {e}")
+        return ""
 
 def intelligent_chunking(text: str, chunk_size=300, overlap=50) -> list:
     words = text.split()
@@ -68,25 +81,31 @@ def process_unstructured_job(cur, document_id, processing_version_id, text):
     chunk_texts = [c[1] for c in chunks_for_processing]
     full_text = " ".join(chunk_texts)
     
+    cur.execute(sql.SQL("SELECT example_text, example_label FROM classification_examples WHERE processing_version_id = %s"), (processing_version_id,))
+    examples_from_db_tuples = cur.fetchall()
+    classification_examples = [{"text": row[0], "label": row[1]} for row in examples_from_db_tuples]
+    if classification_examples:
+        print(f"Found {len(classification_examples)} few-shot examples for version_id {processing_version_id}.")
+
     embeddings = embedding_model.encode(chunk_texts)
     for i, chunk_id in enumerate(chunk_ids):
         cur.execute(sql.SQL("UPDATE chunks SET embedding = %s WHERE id = %s"), (embeddings[i].tolist(), chunk_id))
 
-    topics = topic_extraction_pipeline.extract(chunk_texts)
+    topics = topic_extraction_pipeline.extract(chunk_texts, embeddings)
     for topic in topics:
         cur.execute(sql.SQL("INSERT INTO topics (id, processing_version_id, topic_text, weight, topic_type) VALUES (gen_random_uuid(), %s, %s, %s, %s)"), (processing_version_id, topic['topic_text'], topic['weight'], topic['topic_type']))
 
     summary = summarization_pipeline.summarize(full_text)
-    cur.execute(sql.SQL("UPDATE processing_versions SET summary_text = %s, summary_type = %s, summary_confidence = %s WHERE id = %s"), (summary, "abstractive", 0.90, processing_version_id))
+    cur.execute(sql.SQL("UPDATE processing_versions SET summary_text = %s, summary_type = %s, summary_confidence = %s WHERE id = %s"), (summary, "abstractive", 90, processing_version_id))
 
     action_items = action_item_extraction_pipeline.extract(full_text)
     for item in action_items:
         cur.execute(
             sql.SQL("""
-                INSERT INTO action_items (id, processing_version_id, task_text, original_text, assignee_name, due_date)
-                VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)
+                INSERT INTO action_items (id, processing_version_id, task_text, original_text, assignee_name, due_date, confidence, priority, dependencies)
+                VALUES (gen_random_uuid(), %s, %s, %s, %s, %s, %s, %s, %s)
             """),
-            (processing_version_id, item['task_text'], item['original_text'], item['assignee_name'], item['due_date'])
+            (processing_version_id, item['task_text'], item['original_text'], item['assignee_name'], item['due_date'], item['confidence'], item['priority'], item['dependencies'])
         )
     
     entities, mentions, relationships = knowledge_graph_pipeline.extract_graph_components(chunks_for_processing)
@@ -99,7 +118,7 @@ def process_unstructured_job(cur, document_id, processing_version_id, text):
     for mention in mentions:
         entity_key = (mention['entity_name'], mention['entity_type'])
         if entity_key in entity_id_map:
-            cur.execute(sql.SQL("INSERT INTO entity_mentions (id, processing_version_id, chunk_id, entity_id, mentioned_text, confidence) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)"), (processing_version_id, mention['chunk_id'], entity_id_map[entity_key], mention['mentioned_text'], mention['confidence']))
+            cur.execute(sql.SQL("INSERT INTO entity_mentions (id, processing_version_id, chunk_id, entity_id, mentioned_text, confidence) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)"), (processing_version_id, mention['chunk_id'], entity_id_map[entity_key], int(mention['confidence'] * 100), mention['mentioned_text']))
 
     for rel in relationships:
         source_key = next((key for key in entity_id_map if key[0] == rel['source']), None)
@@ -108,15 +127,14 @@ def process_unstructured_job(cur, document_id, processing_version_id, text):
             cur.execute(sql.SQL("INSERT INTO relationships (id, processing_version_id, source_entity_id, target_entity_id, relationship_type, context_snippet) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)"), (processing_version_id, entity_id_map[source_key], entity_id_map[target_key], rel['type'], rel['context']))
 
     default_candidate_labels = ["finanças", "jurídico", "recursos humanos", "marketing", "relatório técnico", "confidencial"]
-    classifications = classification_pipeline.classify(full_text, default_candidate_labels)
+    classifications = classification_pipeline.classify(full_text, default_candidate_labels, examples=classification_examples)
     processed_labels = []
     for classification in classifications:
         if classification['confidence'] > 0.6:
-            cur.execute(sql.SQL("INSERT INTO document_classifications (id, processing_version_id, label, confidence, classifier_type) VALUES (gen_random_uuid(), %s, %s, %s, %s) ON CONFLICT (processing_version_id, label) DO NOTHING"), (processing_version_id, classification['label'], classification['confidence'], 'zero-shot'))
+            cur.execute(sql.SQL("INSERT INTO document_classifications (id, processing_version_id, label, confidence, classifier_type) VALUES (gen_random_uuid(), %s, %s, %s, %s) ON CONFLICT (processing_version_id, label) DO NOTHING"), (processing_version_id, classification['label'], int(classification['confidence'] * 100), classification['classifier_type']))
             processed_labels.append(classification['label'])
     
     if 'finanças' in processed_labels:
-        # Run finance-specific pipelines
         financial_entities = finance_ner_pipeline.extract_financial_entities(full_text)
         print(f"Finance Flavor: Detected {len(financial_entities)} financial entities for version_id {processing_version_id}.")
         
@@ -127,6 +145,13 @@ def process_unstructured_job(cur, document_id, processing_version_id, text):
                 (processing_version_id, kpi['kpi_name'], kpi['kpi_value'], kpi['kpi_currency'], kpi['period'], kpi['source_snippet'])
             )
         print(f"Finance Flavor: Extracted {len(financial_kpis)} KPIs for version_id {processing_version_id}.")
+
+        risk_analysis = finance_risk_classifier_pipeline.classify_risk(full_text)
+        cur.execute(
+            sql.SQL("INSERT INTO financial_risk_analysis (id, processing_version_id, risk_level, confidence, summary, identified_clauses) VALUES (gen_random_uuid(), %s, %s, %s, %s, %s)"),
+            (processing_version_id, risk_analysis['risk_level'], risk_analysis['confidence'], risk_analysis['summary'], Json(risk_analysis['identified_clauses']))
+        )
+        print(f"Finance Flavor: Performed risk analysis for version_id {processing_version_id}. Result: {risk_analysis['risk_level']}")
 
     cur.execute(sql.SQL("UPDATE processing_versions SET status = %s WHERE id = %s"), ('Processed_Text', processing_version_id))
 
@@ -154,7 +179,10 @@ def process_ingestion_job(document_id, processing_version_id):
                 cur.execute(sql.SQL("UPDATE processing_versions SET status = %s WHERE id = %s"), ('Processed_Tabular', processing_version_id))
         else:
             text = ""
-            if "pdf" in mime_type:
+            if mime_type == 'text/x-url':
+                url = content_bytes.decode('utf-8')
+                text = extract_text_from_url(url)
+            elif "pdf" in mime_type:
                 text = extract_text_from_pdf(content_bytes)
             elif "openxmlformats-officedocument" in mime_type or "docx" in file_name:
                 text = extract_text_from_docx(content_bytes)

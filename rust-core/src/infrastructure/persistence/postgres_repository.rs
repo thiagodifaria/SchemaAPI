@@ -2,7 +2,7 @@ use sqlx::{PgPool, FromRow};
 use uuid::Uuid;
 use serde::Serialize;
 use crate::domain::model::{
-    document::{Document, ActionItem, DocumentQueryResult, ClassificationExample, ProcessingVersionWithDocument},
+    document::{Document, ActionItem, DocumentQueryResult, ClassificationExample, ProcessingVersionWithDocument, Chunk},
     knowledge_graph::{GraphResult, GraphNode, GraphEdge},
 };
 
@@ -20,11 +20,10 @@ pub struct RawFile<'a> {
     pub content: &'a [u8],
 }
 
-// Struct to group all results from a single version
 #[derive(Default)]
 pub struct VersionResults {
     pub action_items: Vec<ActionItem>,
-    // In the future, we may add other results such as topics, etc.
+    pub chunks: Vec<Chunk>,
 }
 
 
@@ -123,7 +122,7 @@ impl PostgresRepository {
         if let Some(version_id) = self.get_latest_version_id(doc_id).await? {
             let document_result = sqlx::query_as::<_, ProcessingVersionWithDocument>(
                 r#"
-                SELECT d.id, d.source_hash, pv.status, pv.summary_text, pv.summary_type, pv.summary_confidence, pv.created_at, d.updated_at
+                SELECT pv.id, d.source_hash, pv.status, pv.summary_text, pv.summary_type, pv.summary_confidence, pv.created_at, d.updated_at
                 FROM documents d JOIN processing_versions pv ON d.id = pv.document_id
                 WHERE pv.id = $1
                 "#
@@ -204,15 +203,20 @@ impl PostgresRepository {
 
         if let Some(version) = version_result {
             let action_items = sqlx::query_as::<_, ActionItem>(
-                "SELECT * FROM action_items WHERE processing_version_id = $1"
+                "SELECT * FROM action_items WHERE processing_version_id = $1 ORDER BY created_at ASC"
+            )
+            .bind(version.id)
+            .fetch_all(&self.pool)
+            .await?;
+
+            let chunks = sqlx::query_as::<_, Chunk>(
+                "SELECT * FROM chunks WHERE processing_version_id = $1 ORDER BY position ASC"
             )
             .bind(version.id)
             .fetch_all(&self.pool)
             .await?;
             
-            // In the future, look for other results (topics, etc.) here
-            
-            Ok(Some(VersionResults { action_items }))
+            Ok(Some(VersionResults { action_items, chunks }))
         } else {
             Ok(None)
         }
