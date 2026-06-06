@@ -1,0 +1,193 @@
+name: schemaapi
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: schema_api_postgres
+    hostname: postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: schema_api_db
+      LANG: en_US.utf8
+      LC_ALL: en_US.utf8
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - schema_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d schema_api_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrations:
+    image: postgres:16-alpine
+    container_name: schema_api_migrations
+    hostname: migrations
+    environment:
+      - PGPASSWORD=password123
+    volumes:
+      - ../service-api/service-postgresql/migrations:/migrations
+    networks:
+      - schema_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        until pg_isready -h postgres -U admin -d schema_api_db; do
+          echo 'Aguardando o banco de dados...'
+          sleep 2
+        done
+        echo 'Banco de dados pronto. Aplicando migrações...'
+        psql -h postgres -U admin -d schema_api_db -v ON_ERROR_STOP=1 -c 'CREATE TABLE IF NOT EXISTS schema_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());'
+        for f in /migrations/*.sql; do
+          name=$$(basename \"$$f\")
+          applied=$$(psql -h postgres -U admin -d schema_api_db -tAc \"SELECT 1 FROM schema_migrations WHERE filename = '$$name'\")
+          if [ \"$$applied\" = '1' ]; then
+            echo \"Skipping $$name\"
+          else
+            echo \"Applying $$name\"
+            psql -h postgres -U admin -d schema_api_db -v ON_ERROR_STOP=1 -f \"$$f\"
+            psql -h postgres -U admin -d schema_api_db -v ON_ERROR_STOP=1 -c \"INSERT INTO schema_migrations (filename) VALUES ('$$name')\"
+          fi
+        done
+        echo 'Migrações concluídas.'
+      "
+    restart: on-failure
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: schema_api_rabbitmq
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - schema_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rust-core:
+    build:
+      context: ..
+      dockerfile: service-api/service-rust/Dockerfile
+    container_name: schema_api_rust_core
+    hostname: rust-core
+    ports:
+      - "8081:8081"
+    environment:
+      - DATABASE__URL=postgres://admin:password123@postgres:5432/schema_api_db
+      - RABBITMQ__URL=amqp://guest:guest@rabbitmq:5672/%2f
+      - API__HOST=0.0.0.0
+      - API__PORT=8081
+      - SCHEMA_RUNTIME=docker
+      - PYTHON_API_URL=http://python-api:8001
+    networks:
+      - schema_network
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:8081/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    dns_search:
+      - schema_network
+
+  python-worker:
+    build:
+      context: ../service-api/service-python
+    container_name: schema_api_worker
+    hostname: worker
+    environment:
+      - POSTGRES_DB=schema_api_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - DB_HOST=postgres
+      - RABBITMQ_HOST=rabbitmq
+      - WORKER_QUEUE_BACKEND=rabbitmq
+      - PYTHONUNBUFFERED=1
+    networks:
+      - schema_network
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python src/worker.py
+
+  python-analytics:
+    build:
+      context: ../service-api/service-python
+    container_name: schema_api_analytics
+    hostname: analytics
+    environment:
+      - POSTGRES_DB=schema_api_db
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=password123
+      - DB_HOST=postgres
+      - RABBITMQ_HOST=rabbitmq
+      - PYTHONUNBUFFERED=1
+    networks:
+      - schema_network
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python src/analytics.py
+
+  python-api:
+    build:
+      context: ../service-api/service-python
+    container_name: schema_api_api
+    hostname: api-service
+    ports:
+      - "8001:8001"
+    networks:
+      - schema_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    command: uvicorn src.server:app --host 0.0.0.0 --port 8001
+
+networks:
+  schema_network:
+    driver: bridge
+    name: schema_api_network
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+volumes:
+  postgres_data:

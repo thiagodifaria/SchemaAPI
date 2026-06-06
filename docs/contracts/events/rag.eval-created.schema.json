@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rag.eval-created",
+  "type": "object",
+  "required": [
+    "eval_run_id",
+    "faithfulness",
+    "context_precision",
+    "context_recall",
+    "answer_relevance",
+    "answer_correctness",
+    "groundedness",
+    "hallucination_risk",
+    "duplicate_context_rate",
+    "incomplete_answer"
+  ],
+  "properties": {
+    "eval_run_id": { "type": "string", "format": "uuid" },
+    "faithfulness": { "type": "number" },
+    "context_precision": { "type": "number" },
+    "context_recall": { "type": "number" },
+    "answer_relevance": { "type": "number" },
+    "answer_correctness": { "type": "number" },
+    "groundedness": { "type": "number" },
+    "hallucination_risk": { "type": "number" },
+    "duplicate_context_rate": { "type": "number" },
+    "incomplete_answer": { "type": "boolean" }
+  }
+}

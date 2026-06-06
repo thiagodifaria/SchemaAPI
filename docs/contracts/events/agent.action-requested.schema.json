@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent.action-requested",
+  "type": "object",
+  "required": ["agent_run_id", "goal", "requested_tool", "tool_risk"],
+  "properties": {
+    "agent_run_id": { "type": "string", "format": "uuid" },
+    "goal": { "type": "string" },
+    "requested_tool": { "type": "string" },
+    "tool_risk": { "type": "string" }
+  }
+}

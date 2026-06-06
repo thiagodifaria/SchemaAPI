@@ -1,0 +1,338 @@
+openapi: 3.0.3
+info:
+  title: SchemaAPI
+  version: 0.5.0
+  description: Document Intelligence API with ingestion, hybrid retrieval, cited RAG, governance, agents, analysis reports and observability.
+servers:
+  - url: http://localhost:8081
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+  /documents/upload:
+    post:
+      summary: Upload a document for asynchronous processing
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                metadata:
+                  type: string
+      responses:
+        "202":
+          description: Accepted
+  /documents/url:
+    post:
+      summary: Ingest a document from a URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+      responses:
+        "202":
+          description: Accepted
+  /documents/{id}:
+    get:
+      summary: Get the latest processed version of a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Document found
+        "404":
+          description: Document not found
+  /documents/{id}/graph:
+    get:
+      summary: Get the document knowledge graph
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Graph result
+  /search:
+    post:
+      summary: Semantic vector search
+      requestBody:
+        $ref: "#/components/requestBodies/SearchRequest"
+      responses:
+        "200":
+          description: Search results
+  /search/lexical:
+    post:
+      summary: PostgreSQL full-text search
+      requestBody:
+        $ref: "#/components/requestBodies/SearchRequest"
+      responses:
+        "200":
+          description: Search results
+  /search/hybrid:
+    post:
+      summary: Presented hybrid vector and lexical search using RRF plus deterministic reranking
+      requestBody:
+        $ref: "#/components/requestBodies/SearchRequest"
+      responses:
+        "200":
+          description: Product-ready search results with excerpt, relevance reason and evidence strength
+  /rag/query:
+    post:
+      summary: Answer a question using retrieved chunks and graph context
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query:
+                  type: string
+                limit:
+                  type: integer
+                  default: 8
+                actor_role:
+                  type: string
+                  default: reader
+      responses:
+        "200":
+          description: RAG answer with citations
+  /governance/pii/redact:
+    post:
+      summary: Redact PII locally
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+      responses:
+        "200":
+          description: Redacted text and findings
+  /analysis/reports:
+    post:
+      summary: Create an analysis report from selected documents and questions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                document_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                rag_queries:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Analysis report
+    get:
+      summary: List analysis reports
+      responses:
+        "200":
+          description: Analysis report list
+  /analysis/reports/{id}:
+    get:
+      summary: Get an analysis report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Analysis report
+        "404":
+          description: Analysis report not found
+  /analysis/reports/{id}/export:
+    get:
+      summary: Export an analysis report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Exported report
+        "404":
+          description: Analysis report not found
+  /governance/audit:
+    get:
+      summary: List recent audit events
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Audit events
+  /observability/rag/evaluate:
+    post:
+      summary: Evaluate the latest audited RAG query
+      responses:
+        "200":
+          description: Evaluation run
+        "404":
+          description: No query audit found
+  /observability/rag/latest:
+    get:
+      summary: Get the latest RAG evaluation
+      responses:
+        "200":
+          description: Latest evaluation run
+        "404":
+          description: No evaluation found
+  /observability/rag/history:
+    get:
+      summary: List recent RAG evaluations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 25
+      responses:
+        "200":
+          description: RAG evaluation history with quality metrics
+  /agents/tools:
+    get:
+      summary: List approved agent tools
+      responses:
+        "200":
+          description: Tool registry
+  /agents/runs:
+    post:
+      summary: Create a controlled agent run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal]
+              properties:
+                goal:
+                  type: string
+                requested_tool:
+                  type: string
+      responses:
+        "202":
+          description: Agent run created
+  /agents/runs/{id}:
+    get:
+      summary: Get an agent run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent run
+        "404":
+          description: Agent run not found
+  /agents/runs/{id}/approve:
+    post:
+      summary: Approve a sensitive agent run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved_by]
+              properties:
+                approved_by:
+                  type: string
+      responses:
+        "200":
+          description: Approved agent run
+        "404":
+          description: Agent run not found
+  /documents/{id}/multimodal:
+    get:
+      summary: Get multimodal/layout blocks for the latest document version
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Multimodal blocks
+  /contexts/auto:
+    get:
+      summary: List automatic contexts inferred from indexed documents
+      responses:
+        "200":
+          description: Automatic contexts
+components:
+  requestBodies:
+    SearchRequest:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [query]
+            properties:
+              query:
+                type: string
+              limit:
+                type: integer
+                default: 10
+              actor_role:
+                type: string
+                default: reader

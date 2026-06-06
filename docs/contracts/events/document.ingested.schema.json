@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "document.ingested",
+  "type": "object",
+  "required": ["document_id", "processing_version_id"],
+  "properties": {
+    "document_id": { "type": "string", "format": "uuid" },
+    "processing_version_id": { "type": "string", "format": "uuid" }
+  }
+}

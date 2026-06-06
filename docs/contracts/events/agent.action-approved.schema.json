@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent.action-approved",
+  "type": "object",
+  "required": ["agent_run_id", "approved_by"],
+  "properties": {
+    "agent_run_id": { "type": "string", "format": "uuid" },
+    "approved_by": { "type": "string" }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "document.processed",
+  "type": "object",
+  "required": ["document_id", "processing_version_id", "status"],
+  "properties": {
+    "document_id": { "type": "string", "format": "uuid" },
+    "processing_version_id": { "type": "string", "format": "uuid" },
+    "status": { "type": "string" }
+  }
+}

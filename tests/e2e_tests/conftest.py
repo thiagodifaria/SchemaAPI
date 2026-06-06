@@ -24,7 +24,7 @@ def db_connection():
             'dbname': db_name,
             'user': db_user,
             'password': db_password,
-            'host': 'localhost',
+            'host': os.environ.get("DB_HOST", "localhost"),
             'port': '5432',
             'client_encoding': 'UTF8',
             'options': '-c client_encoding=UTF8'

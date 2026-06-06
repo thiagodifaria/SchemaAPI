@@ -1,0 +1,13 @@
+{
+  "http": [
+    "docs/contracts/http/schemaapi.openapi.yaml"
+  ],
+  "events": [
+    "docs/contracts/events/document.ingested.schema.json",
+    "docs/contracts/events/document.processed.schema.json",
+    "docs/contracts/events/rag.query-executed.schema.json",
+    "docs/contracts/events/rag.eval-created.schema.json",
+    "docs/contracts/events/agent.action-requested.schema.json",
+    "docs/contracts/events/agent.action-approved.schema.json"
+  ]
+}

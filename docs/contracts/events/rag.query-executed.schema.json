@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "rag.query-executed",
+  "type": "object",
+  "required": ["query_id", "query", "created_at"],
+  "properties": {
+    "query_id": { "type": "string", "format": "uuid" },
+    "query": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "retrieved_chunk_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" }
+    }
+  }
+}

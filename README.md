@@ -1,124 +1,122 @@
 # SchemaAPI
 
-![SchemaAPI Logo](https://img.shields.io/badge/SchemaAPI-Document%20Intelligence-blue?style=for-the-badge&logo=document)
+SchemaAPI is a document intelligence platform for local ingestion, structured extraction, hybrid retrieval, cited RAG, lightweight GraphRAG, governance checks, observability and a desktop control plane.
 
-**Advanced Multilingual Document Processing and Intelligence API**
+The project combines a Rust API, Python document workers, PostgreSQL with pgvector, RabbitMQ and an Electron/React desktop application. It is organized as a Docker-first repository so the backend, database migrations and desktop shell can be operated from the same local workspace.
 
-[![Python](https://img.shields.io/badge/Python-3.10+-3776ab?style=flat&logo=python&logoColor=white)](https://python.org)
-[![Rust](https://img.shields.io/badge/Rust-Latest-000000?style=flat&logo=rust&logoColor=white)](https://rust-lang.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Transformers](https://img.shields.io/badge/🤗_Transformers-Latest-yellow?style=flat)](https://huggingface.co/transformers)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat)](LICENSE)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?style=flat&logo=docker&logoColor=white)](https://docker.com)
+## Documentation
 
----
+- [Detailed English documentation](README_EN.md)
+- [Documentacao detalhada em portugues](README_PT.md)
+- [Architecture](docs/ARQUITETURA.md)
+- [API](docs/API.md)
+- [Operations](docs/OPERACOES.md)
+- [Contracts](docs/contracts)
 
-## 🌍 **Documentation / Documentação**
+## Visual Preview
 
-**📖 [🇺🇸 Read in English](README_EN.md)**  
-**📖 [🇧🇷 Leia em Português](README_PT.md)**
+### Dashboard
 
----
+![SchemaAPI dashboard](docs/assets/images/dashboard.png)
 
-## 🎯 What is SchemaAPI?
+### RAG
 
-SchemaAPI is a **production-ready intelligent document processing API** that transforms unstructured content into actionable insights. Built with **Rust** for high-performance core processing and **Python** for flexible ML capabilities, it handles texts, transcriptions, PDFs, DOCX, and spreadsheets with advanced NLP techniques.
+![SchemaAPI RAG view](docs/assets/images/rag.png)
 
-### ⚡ Key Highlights
+### Analysis
 
-- 🌍 **Multilingual Native Support** - Portuguese, English, Spanish with unified processing
-- 🚀 **Hybrid Architecture** - Rust core for performance, Python for ML flexibility
-- 📊 **Complete Intelligence Pipeline** - Summaries, topics, action items, classifications
-- 🔄 **Batch & Async Processing** - Handle single documents or massive batches efficiently
-- 🕸️ **Knowledge Graph Construction** - Discover relationships and build organizational knowledge
-- 📈 **Temporal Pattern Detection** - Identify trends, anomalies, and recurring patterns
-- 🛡️ **Production Ready** - Rate limiting, health checks, audit trails, versioning
-- 🐳 **Easy Deployment** - Docker Compose setup with Redis, PostgreSQL, and workers
+![SchemaAPI analysis view](docs/assets/images/analise.png)
 
-### 🏆 What Makes It Special?
+The project follows a service-oriented layout:
 
-```
-✅ Hybrid Rust/Python architecture for optimal performance
-✅ Advanced NLP with extractive/abstractive summarization
-✅ Intelligent action item extraction with assignee prediction
-✅ Knowledge graph construction and relationship discovery
-✅ Temporal pattern detection and forecasting
-✅ Multi-format support with intelligent normalization
-✅ Continuous learning through feedback loops
-✅ Vertical specialization for finance, legal, HR domains
-```
+- `client-desktop`: Electron, React and Vite desktop control plane.
+- `service-api/service-rust`: Actix API, request handlers, retrieval, RAG orchestration and PostgreSQL access.
+- `service-api/service-python`: parsing, chunking, embeddings, extraction workers, analytics worker and vectorization API.
+- `service-api/service-postgresql`: PostgreSQL and pgvector migrations.
+- `infra`: Docker Compose runtime.
+- `scripts`: local operational commands.
+- `docs`: architecture, operations, API contracts and screenshots.
+- `tests`: end-to-end validation for the document workflow.
 
----
+## Main Capabilities
 
-## ⚡ Quick Start
+- Document upload and URL ingestion through the Rust API and desktop app.
+- Asynchronous processing through RabbitMQ workers.
+- PDF, DOCX, plain text, CSV and spreadsheet ingestion paths.
+- Structured parsing with sections, tables, layout metadata and multimodal block records.
+- Semantic chunks with `all-MiniLM-L6-v2` embeddings stored in pgvector.
+- PostgreSQL lexical search, vector search and hybrid search.
+- RAG answers with citations, audit records and evidence warnings.
+- Lightweight graph context from extracted entities, mentions and relationships.
+- Extraction of summaries, action items, topics, classifications, financial KPIs, risk analysis, legal clauses and tabular summaries.
+- Local PII redaction, chunk role metadata and governance audit views.
+- Deterministic RAG evaluation records for observability.
+- Controlled agent runs with approval flow for sensitive tools.
+- Desktop screens for documents, search, RAG, analysis reports, governance, agents and observability.
 
-### Option 1: Docker Compose (Recommended)
+## Quick Start
+
+Run the local stack and desktop app:
+
 ```bash
-# Clone and run with all services
-git clone https://github.com/thiagodifaria/SchemaAPI.git
-cd SchemaAPI
-docker-compose up --build
-
-# API available at: http://localhost:8000
-# Docs available at: http://localhost:8000/docs
+./scripts/build.sh
 ```
 
-### Option 2: Local Development
+Run without opening the desktop window:
+
 ```bash
-git clone https://github.com/thiagodifaria/SchemaAPI.git
-cd SchemaAPI
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+./scripts/build.sh --no-desktop
 ```
 
-### 🔥 Test It Now!
+Run smoke tests against the Docker stack:
+
 ```bash
-# Process document
-curl -X POST "http://localhost:8000/api/v1/documents/process" \
-     -H "Content-Type: multipart/form-data" \
-     -F "file=@meeting-notes.pdf"
-
-# Response:
-# {
-#   "document_id": "c5d3b066-013b-4a9c-baeb-5f420200f796",
-#   "processing_status": "completed",
-#   "summary": "Product roadmap discussion with Q3 priorities...",
-#   "action_items": [
-#     {
-#       "task": "Finalize budget proposal",
-#       "assignee": "Maria Silva",
-#       "due_date": "2025-08-25",
-#       "priority": "high"
-#     }
-#   ],
-#   "topics": ["budget", "roadmap", "priorities"],
-#   "processing_time_ms": 2341.7
-# }
+./scripts/test.sh smoke
 ```
 
----
+## Container Stack
 
-## 🔍 API Overview
+Main services:
 
-| Feature | Endpoint | Description |
-|---------|----------|-------------|
-| 📄 **Document Processing** | `POST /api/v1/documents/process` | Process single document |
-| 📦 **Batch Processing** | `POST /api/v1/documents/batch` | Process multiple documents |
-| 📊 **Document Analysis** | `GET /api/v1/documents/{id}/analysis` | Get complete analysis |
-| 🕸️ **Knowledge Graph** | `GET /api/v1/knowledge/graph` | Explore relationships |
-| 📈 **Pattern Analytics** | `GET /api/v1/analytics/patterns` | Temporal patterns and trends |
-| 🔍 **Semantic Search** | `POST /api/v1/search/semantic` | Search by meaning |
-| 📋 **History** | `GET /api/v1/history` | Query processing history |
-| 🏥 **Health Check** | `GET /health` | Service health monitoring |
+- Rust API: `http://localhost:8081`
+- Python vectorization API: `http://localhost:8001`
+- RabbitMQ management UI: `http://localhost:15672`
+- PostgreSQL: `localhost:5432`
 
----
+Useful commands:
 
-## 📞 Contact
+```bash
+./scripts/build.sh ps
+./scripts/build.sh logs
+./scripts/build.sh down
+./scripts/build.sh contracts
+```
 
-**Thiago Di Faria** - thiagodifaria@gmail.com
+## Configuration
 
-[![GitHub](https://img.shields.io/badge/GitHub-@thiagodifaria-black?style=flat&logo=github)](https://github.com/thiagodifaria)
+Create or edit `.env` in the repository root. The local defaults mirror `.env.example`:
 
----
+```env
+POSTGRES_USER=admin
+POSTGRES_PASSWORD=password123
+POSTGRES_DB=schema_api_db
 
-**Made by [Thiago Di Faria](https://github.com/thiagodifaria)**
+DATABASE__URL=postgres://admin:password123@postgres:5432/schema_api_db
+RABBITMQ__URL=amqp://guest:guest@rabbitmq:5672/%2f
+API__HOST=0.0.0.0
+API__PORT=8081
+```
+
+## Build and Run
+
+This repository is intended to be built locally with Docker Compose through the project scripts. Use `./scripts/build.sh` for the full local stack and desktop app, or `./scripts/build.sh --no-desktop` when only the backend services should be rebuilt.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
+## Contact
+
+Thiago Di Faria - [thiagodifaria@gmail.com](mailto:thiagodifaria@gmail.com)
+
+Project link: [https://github.com/thiagodifaria/SchemaAPI](https://github.com/thiagodifaria/SchemaAPI)
