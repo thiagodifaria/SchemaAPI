@@ -1,17 +1,32 @@
 # SchemaAPI
 
-SchemaAPI is a document intelligence platform for local ingestion, structured extraction, hybrid retrieval, cited RAG, lightweight GraphRAG, governance checks, observability and a desktop control plane.
+![SchemaAPI](https://img.shields.io/badge/SchemaAPI-Document%20Intelligence-111827?style=for-the-badge&logo=databricks&logoColor=white)
+
+**SchemaAPI is a document intelligence platform for local ingestion, structured extraction, hybrid retrieval, cited RAG, lightweight GraphRAG, governance checks, observability and a desktop control plane.**
+
+[![Version](https://img.shields.io/badge/Version-1.0.0-2563EB?style=flat)](README.md)
+[![Rust](https://img.shields.io/badge/Rust-API-000000?style=flat&logo=rust&logoColor=white)](service-api/service-rust)
+[![Python](https://img.shields.io/badge/Python-workers-3776AB?style=flat&logo=python&logoColor=white)](service-api/service-python)
+[![Electron](https://img.shields.io/badge/Electron-desktop-47848F?style=flat&logo=electron&logoColor=white)](client-desktop)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?style=flat&logo=postgresql&logoColor=white)](service-api/service-postgresql)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-async%20jobs-FF6600?style=flat&logo=rabbitmq&logoColor=white)](infra)
+[![Runtime](https://img.shields.io/badge/Runtime-Docker%20Compose-2496ED?style=flat&logo=docker&logoColor=white)](infra)
+[![License](https://img.shields.io/badge/License-MIT-success?style=flat)](LICENSE)
 
 The project combines a Rust API, Python document workers, PostgreSQL with pgvector, RabbitMQ and an Electron/React desktop application. It is organized as a Docker-first repository so the backend, database migrations and desktop shell can be operated from the same local workspace.
 
-## Documentation
+---
 
-- [Detailed English documentation](README_EN.md)
-- [Documentacao detalhada em portugues](README_PT.md)
-- [Architecture](docs/ARQUITETURA.md)
-- [API](docs/API.md)
-- [Operations](docs/OPERACOES.md)
-- [Contracts](docs/contracts)
+## Documentation / Documentacao
+
+**Leia em Portugues:** [README_PT.md](README_PT.md)  
+**Read the detailed English README:** [README_EN.md](README_EN.md)  
+**Architecture:** [docs/ARQUITETURA.md](docs/ARQUITETURA.md)  
+**API:** [docs/API.md](docs/API.md)  
+**Operations:** [docs/OPERACOES.md](docs/OPERACOES.md)  
+**Contracts:** [docs/contracts](docs/contracts)
+
+---
 
 ## Visual Preview
 
